@@ -22,14 +22,18 @@ final class Mongo
      *
      * @param string $server
      * @return \MongoClient
-     * @throws \Exception
+     * @throws MongoException
      */
     private static function client(string $server): \MongoClient
     {
         // 如果缓存中没有
         if (!isset(self::$clients[$server])) {
             // 创建一个连接
-            self::$clients[$server] = new \MongoClient($server);
+            try {
+                self::$clients[$server] = new \MongoClient($server);
+            } catch (\MongoException $e) {
+                throw new MongoException('Mongo服务器连接失败:' . $server, MongoException::CONNECT_FAIL);
+            }
         }
         return self::$clients[$server];
     }
@@ -39,7 +43,7 @@ final class Mongo
      *
      * @param string $name
      * @return \MongoCollection
-     * @throws \Exception
+     * @throws MongoException
      */
     private static function collection(string $name): \MongoCollection
     {
@@ -47,7 +51,11 @@ final class Mongo
         $start = timeLog();
 
         // 取此集合的配置
-        $config = config('mongo', $name);
+        try {
+            $config = config('mongo', $name);
+        } catch (ConfigException $e) {
+            throw new MongoException('读取Mongo服务器配置失败:' . $name, MongoException::CONFIG_FAIL);
+        }
 
         // 智能识别配置信息
         if (is_array($config)) {
@@ -63,12 +71,7 @@ final class Mongo
         }
 
         // 连接指定数据库
-        try {
-            $db = self::client($server);
-        } catch (\Exception $e) {
-            dump($e->getMessage());
-            exit();
-        }
+        $db = self::client($server);
 
         // 分解库名
         $arr = explode('/', $server);
@@ -78,7 +81,12 @@ final class Mongo
         debug("connect to mongo $name ,persist:" . timeLog($start) . 'ms');
 
         // 返回集合对象
-        return $db->selectCollection($dbname, $collection);
+        try {
+            return $db->selectCollection($dbname, $collection);
+        } catch (\Exception $e) {
+            throw new MongoException('Mongo集合名称错误:' . $name, MongoException::COLLECTION_ERROR);
+        }
+
     }
 
     /**
@@ -94,7 +102,7 @@ final class Mongo
      * 构造方法
      *
      * @param string $name 集合名称
-     * @throws \Exception
+     * @throws MongoException
      */
     public function __construct(string $name)
     {
