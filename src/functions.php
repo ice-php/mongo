@@ -7,7 +7,7 @@ namespace icePHP;
  * 这是一个SMongo的快捷入口
  * @param string $name Mongo表名
  * @return Mongo
- * @throws \Exception
+ * @throws MongoException
  */
 function mongo(string $name): Mongo
 {
